@@ -27,8 +27,8 @@ The whole lab costs well under $0.05 in OpenAI usage.
 ## Run it locally (Jupyter or VS Code)
 
 ```bash
-git clone https://github.com/3percentclub/builders-week4-midnight-rental
-cd builders-week4-midnight-rental
+git clone https://github.com/3percentclub/builders-week4
+cd builders-week4
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -65,4 +65,4 @@ Embeddings can shift a little between runs, so your numbers may differ slightly 
 
 ---
 
-Made by [3percentclub](https://3percentclub.org) for the AI Builders fellowship. Movie summaries were written for this lab. **Homework:** [builders-week4-homework](https://github.com/3percentclub/builders-week4-homework)
+Made by [3percentclub](https://3percentclub.org) for the AI Builders fellowship. Movie summaries were written for this lab. **Homework:** see the [homework/](homework/) folder in this repo
