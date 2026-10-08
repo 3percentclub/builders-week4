@@ -20,8 +20,8 @@ Retested on Oct 8, 2026, with **no API key** (local embeddings), and every code 
 
 ## Before class
 
-1. Open the repo in Colab via File → Open notebook → GitHub and run all cells once, both without a key and with one (to see the chat engine).
-2. At the lab slide, Ruth drops the repo link + "File → Save a copy in Drive" in Zoom chat and WhatsApp.
+1. Open the Colab link below and run all cells once, both without a key and with one (to see the chat engine).
+2. At the lab slide, Ruth drops the **Colab link** in Zoom chat and WhatsApp: https://colab.research.google.com/github/3percentclub/builders-week4/blob/main/lab.ipynb . Tell the room: "Click it, then Runtime → Run all. No key needed."
 3. No key is required. Fellows who have any key (OpenRouter, Groq, Gemini, OpenAI...) paste it at the Block 1 prompt to unlock the last two cells. Everyone else presses Enter.
 
 ## Common room issues

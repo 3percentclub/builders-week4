@@ -22,6 +22,8 @@ Plus the multi-turn memory bug, and the `CondensePlusContextChatEngine` fix.
 1. Click **[Open in Colab](https://colab.research.google.com/github/3percentclub/builders-week4/blob/main/lab.ipynb)**.
 2. Click **Runtime → Run all**.
 
+Link to share: **https://colab.research.google.com/github/3percentclub/builders-week4/blob/main/lab.ipynb**
+
 That's it. Nothing asks for a key, and it's free. (To keep your edits: **File → Save a copy in Drive**.)
 
 > **Opened it before and it asked for an OpenAI key?** That was an old copy. Click the link above for the new one.
