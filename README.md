@@ -10,7 +10,9 @@ It's 11:58 PM at the last video store in Brooklyn. A customer half-remembers a h
 
 Plus the multi-turn memory bug, and the `CondensePlusContextChatEngine` fix.
 
-**Stack:** LlamaIndex · ChromaDB · BM25 (`bm25s`) · Reciprocal Rank Fusion · FlashRank · OpenAI (`text-embedding-3-small`, `gpt-4o-mini`)
+**Stack:** LlamaIndex · ChromaDB · BM25 (`bm25s`) · Reciprocal Rank Fusion · FlashRank · local `all-MiniLM-L6-v2` embeddings · any LLM you have a key for (optional)
+
+**No API key required.** Every experiment runs locally. A chat model is only used by the last two cells, and any provider's key works (OpenRouter, Groq, Gemini, OpenAI, Anthropic, Vercel AI Gateway, or a local Ollama).
 
 ---
 
@@ -19,10 +21,10 @@ Plus the multi-turn memory bug, and the `CondensePlusContextChatEngine` fix.
 1. Go to [colab.research.google.com](https://colab.research.google.com) → **File → Open notebook → GitHub** tab.
 2. Paste this repo's URL and pick `lab.ipynb`.
 3. **File → Save a copy in Drive** so your edits are saved to your own copy.
-4. Add your key: click the **key icon** in the left sidebar → **Add new secret** → name it `OPENAI_API_KEY`, paste the key, and turn on **Notebook access**. Or skip this and paste the key when the notebook asks.
-5. Run cells top to bottom with `Shift + Enter`.
+4. Run cells top to bottom with `Shift + Enter`. When Block 1 asks for a key, **paste any LLM key you have, or press Enter to skip**. The notebook works out the provider from the key.
+5. Optional: save the key as a Colab secret named `LLM_API_KEY` (key icon in the left sidebar → turn on **Notebook access**) so it isn't asked for each time.
 
-The whole lab costs well under $0.05 in OpenAI usage.
+Without a key, the lab is free. With one, it costs a fraction of a cent.
 
 ## Run it locally (Jupyter or VS Code)
 
@@ -32,7 +34,7 @@ cd builders-week4
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-export OPENAI_API_KEY=sk-...       # Windows PowerShell: $env:OPENAI_API_KEY="sk-..."
+export LLM_API_KEY=sk-or-...       # optional, any provider. Windows PowerShell: $env:LLM_API_KEY="..."
 jupyter notebook lab.ipynb
 ```
 
@@ -42,7 +44,7 @@ Locally, the `%pip install` cell is optional, and running it does no harm.
 
 | Block | What happens |
 |---|---|
-| 1. Setup | Install the stack, load your key, check it works |
+| 1. Setup | Install the stack, load local embeddings, optionally connect any LLM key |
 | 2. Data | Load `horror_movies.json`: 38 tapes, one `Document` each (title, cast, plot, ending, clerk's note) |
 | 3. Pipeline | `SentenceSplitter` → ChromaDB vector index + BM25 index → `QueryFusionRetriever` (RRF) → `FlashRankRerank(top_n=3)` |
 | Experiment 1 | Rebuild at `chunk_size=128`; count orphan chunks and chunks that have title + ending |
@@ -57,11 +59,12 @@ Embeddings can shift a little between runs, so your numbers may differ slightly 
 
 | Problem | Fix |
 |---|---|
-| `AuthenticationError` / 401 at the key check | Wrong or expired key. Re-run the key cell. In Colab, make sure the secret's **Notebook access** toggle is on. |
-| `RateLimitError` / `insufficient_quota` | Your OpenAI account has no credit. Add a few dollars of credit, or pair with a neighbor. |
+| "LLM check failed" in Block 1 | The key is wrong, expired, or out of credit. The lab keeps going without an LLM; only the last two cells show retrieved chunks instead of answers. Re-run Block 1 with a different key if you want them. |
+| "Couldn't tell which provider that key is for" | Set `LLM_BASE_URL` and `LLM_MODEL` as well (any OpenAI-compatible endpoint). |
+| The model name doesn't exist on your provider | Set `LLM_MODEL` to one it offers, then re-run Block 1. |
 | Red "dependency conflict" text after `%pip install` | That's Colab's preinstalled packages complaining. If the cell finished, keep going. If imports fail, use **Runtime → Restart session** and run from the top. |
 | `NameError: name 'docs' is not defined` (or similar) | You skipped a cell. Run everything from the top (**Runtime → Run all**). |
-| FlashRank download fails | It downloads a ~22 MB model once. Re-run the Block 3 cell. |
+| FlashRank or embedding download fails | They download once (~22 MB and ~80 MB). Re-run the cell. |
 
 ---
 
