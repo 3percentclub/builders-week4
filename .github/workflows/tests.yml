@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  homework:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,3 +15,19 @@ jobs:
           python-version: "3.12"
       - run: python -m unittest -v
         working-directory: homework
+
+  part2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Guardrail tests (fake model, no network)
+        run: python -m unittest discover -s tests -v
+        working-directory: part2
+      - name: Retrieval evals (local embeddings, no key)
+        run: python evals.py --min-hit3 0.9
+        working-directory: part2

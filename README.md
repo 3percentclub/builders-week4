@@ -67,57 +67,73 @@ Embeddings can shift a little between runs, so your numbers may differ slightly 
 
 ## Part 2: Ship it (agentic RAG + MCP + evals)
 
-The notebook teaches the pipeline. `production/` turns it into something you'd actually ship and put on a resume. Same shelf, same retrieval stack, four small files:
+The notebook teaches the pipeline. `part2/` turns it into something you'd ship. **Retrieval, evals, and the MCP server need no API key and no account**: embeddings and re-ranking run locally on your laptop. Only the chat agent needs a model, and it works with any provider (or none, via Ollama).
 
 | File | What it does |
 |---|---|
-| `production/shelf.py` | The pipeline as a reusable module. Chroma index persists to `.shelf_index/`, so you pay for embeddings once. One `search(query, k, mode)` for every caller. |
-| `production/evals.py` | Scores `vector`, `bm25`, `hybrid`, and `rerank` against 15 labeled questions in `evals.json`. Prints hit@1, hit@3, and MRR. |
-| `production/agent.py` | Agentic RAG. The model decides what to search and when to stop, with a 3-search budget, required tape citations, a check for invented tape numbers, and "not on the shelf" instead of guessing. |
-| `production/mcp_server.py` | The shelf as an MCP server (`search_shelf`, `get_tape`). Week 3 gave your agent hands; this gives it a library card. |
+| `part2/shelf.py` | The pipeline as a module. Index persists to `.shelf_index/` and rebuilds by itself when the data, chunking, or embedding model changes. `search(query, k, mode)` for every caller. |
+| `part2/evals.py` | Scores `vector`, `bm25`, `hybrid`, `rerank` on 40+ labeled questions (paraphrases, exact names, clerk's-note facts, tapes the models have never seen). `--agent` also scores the agent on "not on the shelf" questions. |
+| `part2/agent.py` | Agentic RAG with guardrails: a hard budget of 3 searches per question, required tape citations, citations checked against what was actually retrieved, and "not on the shelf" instead of guessing. Spoiler-free unless you pass `--spoilers`. |
+| `part2/mcp_server.py` | The shelf as an MCP server (`search_shelf`, `get_tape`). Week 3 gave your agent hands; this gives it a library card. |
+| `part2/providers.py` | One place that picks your model provider. |
+| `part2/tests/` | 18 tests for the guardrails, using a fake model. No network. |
 
 ```bash
 pip install -r requirements.txt
-export OPENAI_API_KEY=sk-...
-cd production
+cd part2
 
-python evals.py --misses                 # the scoreboard
-python agent.py "the guy hypnotized with a teacup who sinks into the floor"
-python agent.py                          # interactive, with memory
+python evals.py                       # the scoreboard, no key needed
+python -m unittest discover -s tests  # guardrail tests, no key needed
+python agent.py "the guard drives below the bottom floor of a garage"
+python agent.py                       # interactive, remembers the conversation
 ```
 
-What our run printed (yours may shift slightly):
+What our run printed (local embeddings, no key):
 
 ```
 mode      hit@1  hit@3    MRR
-vector      80%    87%   0.84
-bm25        93%   100%   0.97
-hybrid      87%   100%   0.92
-rerank     100%   100%   1.00
+vector      63%    76%   0.70
+bm25        90%    95%   0.93
+hybrid      80%    95%   0.88
+rerank      95%    98%   0.96
 ```
 
-Vector-only misses `tape 1313` and `Pleasence`, the exact-match problem from Experiment 2, now measured.
+Vector-only struggles with exact names and tape numbers. Re-ranking fixes most of it. One question still misses, and that's on purpose: go find out why.
 
-**Plug it into Claude Desktop or Cursor:** add this to your MCP config (use absolute paths), restart, and ask "what's on the Midnight Rental shelf about a haunted mirror?"
+### Pick a model (any one of these)
+
+The agent uses whichever key it finds. Or set `LLM_PROVIDER` yourself.
+
+| Provider | Set this | Notes |
+|---|---|---|
+| Ollama (free, local) | nothing | Install Ollama, run `ollama pull llama3.1`. The default when no key is set. |
+| OpenAI | `OPENAI_API_KEY` | |
+| Vercel AI Gateway | `AI_GATEWAY_API_KEY` | One key, hundreds of models. |
+| OpenRouter | `OPENROUTER_API_KEY` | |
+| Groq | `GROQ_API_KEY` | Free tier, very fast. |
+| Anything OpenAI-compatible | `LLM_PROVIDER=custom LLM_BASE_URL=... LLM_API_KEY=... LLM_MODEL=...` | LM Studio, vLLM, Together, your company's proxy. |
+
+Change the model with `LLM_MODEL=...`. Want hosted embeddings instead of local? `EMBED_PROVIDER=openai` (the index rebuilds itself).
+
+**Plug it into Claude Desktop or Cursor** (absolute paths, no key needed):
 
 ```json
 {
   "mcpServers": {
     "midnight-rental": {
       "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["/absolute/path/to/builders-week4/production/mcp_server.py"],
-      "env": { "OPENAI_API_KEY": "sk-..." }
+      "args": ["/absolute/path/to/builders-week4/part2/mcp_server.py"]
     }
   }
 }
 ```
 
-**Make it yours (pick one):** add 10 eval questions the pipeline fails, then fix them · swap Chroma for pgvector or LanceDB and re-run the evals · point `shelf.py` at your own documents.
+Restart, then ask: "what's on the Midnight Rental shelf about monks and a clock tower?"
 
-**Resume bullet you've earned:**
-> Built an agentic RAG search tool exposed over MCP, with hybrid retrieval (BM25 + vectors, RRF) and cross-encoder re-ranking; wrote an eval harness that raised hit@1 from 80% to 100%.
+**Make it yours (pick one):** write 10 eval questions the pipeline fails, then fix them · swap Chroma for pgvector or LanceDB and re-run the evals · point `shelf.py` at your own documents.
 
-Using an OpenAI-compatible gateway instead of OpenAI? Set `OPENAI_BASE_URL` and `OPENAI_API_BASE` to its URL, plus `EMBED_MODEL` and `CHAT_MODEL`.
+**Resume bullet (put YOUR numbers in):**
+> Built an agentic RAG search tool exposed over MCP, with hybrid retrieval (BM25 + vectors) and cross-encoder re-ranking; wrote a 40-question eval harness that raised hit@1 from X% to Y%, with guardrail tests for citation grounding.
 
 ---
 

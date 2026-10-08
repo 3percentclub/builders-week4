@@ -4,3 +4,4 @@ __pycache__/
 .env
 chroma/
 .shelf_index/
+eval_results.json
