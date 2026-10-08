@@ -8,6 +8,8 @@ on:
 jobs:
   homework:
     runs-on: ubuntu-latest
+    # The starter ships with 3 failing tests on purpose; students turn them green in their own copy.
+    continue-on-error: ${{ github.repository == '3percentclub/builders-week4' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
