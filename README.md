@@ -65,4 +65,60 @@ Embeddings can shift a little between runs, so your numbers may differ slightly 
 
 ---
 
+## Part 2: Ship it (agentic RAG + MCP + evals)
+
+The notebook teaches the pipeline. `production/` turns it into something you'd actually ship and put on a resume. Same shelf, same retrieval stack, four small files:
+
+| File | What it does |
+|---|---|
+| `production/shelf.py` | The pipeline as a reusable module. Chroma index persists to `.shelf_index/`, so you pay for embeddings once. One `search(query, k, mode)` for every caller. |
+| `production/evals.py` | Scores `vector`, `bm25`, `hybrid`, and `rerank` against 15 labeled questions in `evals.json`. Prints hit@1, hit@3, and MRR. |
+| `production/agent.py` | Agentic RAG. The model decides what to search and when to stop, with a 3-search budget, required tape citations, a check for invented tape numbers, and "not on the shelf" instead of guessing. |
+| `production/mcp_server.py` | The shelf as an MCP server (`search_shelf`, `get_tape`). Week 3 gave your agent hands; this gives it a library card. |
+
+```bash
+pip install -r requirements.txt
+export OPENAI_API_KEY=sk-...
+cd production
+
+python evals.py --misses                 # the scoreboard
+python agent.py "the guy hypnotized with a teacup who sinks into the floor"
+python agent.py                          # interactive, with memory
+```
+
+What our run printed (yours may shift slightly):
+
+```
+mode      hit@1  hit@3    MRR
+vector      80%    87%   0.84
+bm25        93%   100%   0.97
+hybrid      87%   100%   0.92
+rerank     100%   100%   1.00
+```
+
+Vector-only misses `tape 1313` and `Pleasence`, the exact-match problem from Experiment 2, now measured.
+
+**Plug it into Claude Desktop or Cursor:** add this to your MCP config (use absolute paths), restart, and ask "what's on the Midnight Rental shelf about a haunted mirror?"
+
+```json
+{
+  "mcpServers": {
+    "midnight-rental": {
+      "command": "/absolute/path/to/.venv/bin/python",
+      "args": ["/absolute/path/to/builders-week4/production/mcp_server.py"],
+      "env": { "OPENAI_API_KEY": "sk-..." }
+    }
+  }
+}
+```
+
+**Make it yours (pick one):** add 10 eval questions the pipeline fails, then fix them · swap Chroma for pgvector or LanceDB and re-run the evals · point `shelf.py` at your own documents.
+
+**Resume bullet you've earned:**
+> Built an agentic RAG search tool exposed over MCP, with hybrid retrieval (BM25 + vectors, RRF) and cross-encoder re-ranking; wrote an eval harness that raised hit@1 from 80% to 100%.
+
+Using an OpenAI-compatible gateway instead of OpenAI? Set `OPENAI_BASE_URL` and `OPENAI_API_BASE` to its URL, plus `EMBED_MODEL` and `CHAT_MODEL`.
+
+---
+
 Made by [3percentclub](https://3percentclub.org) for the AI Builders fellowship. Movie summaries were written for this lab. **Homework:** see the [homework/](homework/) folder in this repo
