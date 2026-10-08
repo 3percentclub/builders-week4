@@ -12,7 +12,7 @@ Search = two keyword rankers (one over title/cast/director, one over the plot),
 merged with YOUR rrf() from fusion.py. So finish Level 2 first.
 
 Standard library only. Works with any OpenAI-compatible provider.
-Set LLM_API_KEY, LLM_BASE_URL, and MODEL (see README).
+Set LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL (see README), as env vars or in a .env file.
 """
 
 import json
@@ -24,6 +24,23 @@ from collections import Counter
 
 from chunker import SHELF
 from fusion import rrf
+
+def load_dotenv() -> None:
+    """Read KEY=value lines from the nearest .env (this folder or any parent). Real env vars win."""
+    from pathlib import Path
+
+    for folder in [Path.cwd(), *Path.cwd().parents, Path(__file__).resolve().parent, *Path(__file__).resolve().parents]:
+        path = folder / ".env"
+        if path.is_file():
+            for line in path.read_text().splitlines():
+                name, sep, value = line.partition("=")
+                value = value.strip().strip("'\"")
+                if sep and value and not name.strip().startswith("#"):
+                    os.environ.setdefault(name.strip(), value)
+            return
+
+
+load_dotenv()
 
 STOP = set("a an and are as at be but by for from has he her his in into is it its of on or she that the their they this to was were with you your".split())
 
@@ -61,7 +78,7 @@ def llm(messages: list[dict]) -> str:
     base = os.environ["LLM_BASE_URL"].rstrip("/")
     req = urllib.request.Request(
         f"{base}/chat/completions",
-        data=json.dumps({"model": os.environ["MODEL"], "messages": messages, "temperature": 0}).encode(),
+        data=json.dumps({"model": os.environ.get("LLM_MODEL") or os.environ["MODEL"], "messages": messages, "temperature": 0}).encode(),
         headers={"Authorization": f"Bearer {os.environ['LLM_API_KEY']}", "Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=60) as resp:

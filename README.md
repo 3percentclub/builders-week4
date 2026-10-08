@@ -2,6 +2,9 @@
 
 **3percentclub · AI Builders · Week 4 lab: Production RAG, Vector Search & Context Memory**
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/3percentclub/builders-week4/blob/main/lab.ipynb)
+
+
 It's 11:58 PM at the last video store in Brooklyn. A customer half-remembers a horror movie, and the clerk's AI has to find the right tape out of 38. You'll build a two-stage hybrid retrieval pipeline over the shelf, then tune it with three experiments:
 
 1. **Chunk size:** 512 vs 128 tokens. Watch small chunks cut a movie's ending off from its title.
@@ -10,21 +13,29 @@ It's 11:58 PM at the last video store in Brooklyn. A customer half-remembers a h
 
 Plus the multi-turn memory bug, and the `CondensePlusContextChatEngine` fix.
 
-**Stack:** LlamaIndex · ChromaDB · BM25 (`bm25s`) · Reciprocal Rank Fusion · FlashRank · local `all-MiniLM-L6-v2` embeddings · any LLM you have a key for (optional)
-
-**No API key required.** Every experiment runs locally. A chat model is only used by the last two cells, and any provider's key works (OpenRouter, Groq, Gemini, OpenAI, Anthropic, Vercel AI Gateway, or a local Ollama).
+**Stack:** LlamaIndex · ChromaDB · BM25 (`bm25s`) · Reciprocal Rank Fusion · FlashRank · local embeddings (`all-MiniLM-L6-v2`)
 
 ---
 
-## Run it in Google Colab (recommended, nothing to install)
+## Start here (2 clicks, no API key)
 
-1. Go to [colab.research.google.com](https://colab.research.google.com) → **File → Open notebook → GitHub** tab.
-2. Paste this repo's URL and pick `lab.ipynb`.
-3. **File → Save a copy in Drive** so your edits are saved to your own copy.
-4. Run cells top to bottom with `Shift + Enter`. When Block 1 asks for a key, **paste any LLM key you have, or press Enter to skip**. The notebook works out the provider from the key.
-5. Optional: save the key as a Colab secret named `LLM_API_KEY` (key icon in the left sidebar → turn on **Notebook access**) so it isn't asked for each time.
+1. Click **[Open in Colab](https://colab.research.google.com/github/3percentclub/builders-week4/blob/main/lab.ipynb)**.
+2. Click **Runtime → Run all**.
 
-Without a key, the lab is free. With one, it costs a fraction of a cent.
+That's it. Nothing asks for a key, and it's free. (To keep your edits: **File → Save a copy in Drive**.)
+
+> **Opened it before and it asked for an OpenAI key?** That was an old copy. Click the link above for the new one.
+
+### Optional: have an LLM key?
+
+Only the last two cells use a chat model. Without a key, they still run and show the search results instead.
+If you have a key from **anywhere** (OpenRouter, Groq, Gemini, DeepSeek, OpenAI, Anthropic...), paste it into the **⚙️ SETTINGS** cell at the top of the notebook:
+
+```python
+LLM_API_KEY = "sk-or-..."   # any provider; it figures out which one
+```
+
+The same `LLM_API_KEY` works everywhere in this repo: Colab (settings cell or a Colab Secret), and locally in a `.env` file (copy `.env.example`). `LLM_MODEL` and `LLM_BASE_URL` are there too if you need a specific model or a local server like Ollama.
 
 ## Run it locally (Jupyter or VS Code)
 
@@ -34,7 +45,7 @@ cd builders-week4
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-export LLM_API_KEY=sk-or-...       # optional, any provider. Windows PowerShell: $env:LLM_API_KEY="..."
+cp .env.example .env               # optional: add any LLM key. Windows: copy .env.example .env
 jupyter notebook lab.ipynb
 ```
 
@@ -114,9 +125,19 @@ The agent uses whichever key it finds. Or set `LLM_PROVIDER` yourself.
 | Vercel AI Gateway | `AI_GATEWAY_API_KEY` | One key, hundreds of models. |
 | OpenRouter | `OPENROUTER_API_KEY` | |
 | Groq | `GROQ_API_KEY` | Free tier, very fast. |
+| DeepSeek | `DEEPSEEK_API_KEY` | Its keys start with `sk-` like OpenAI's, so use this name (or `LLM_PROVIDER=deepseek`). |
+| Anthropic / Gemini | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | |
 | Anything OpenAI-compatible | `LLM_PROVIDER=custom LLM_BASE_URL=... LLM_API_KEY=... LLM_MODEL=...` | LM Studio, vLLM, Together, your company's proxy. |
 
-Change the model with `LLM_MODEL=...`. Want hosted embeddings instead of local? `EMBED_PROVIDER=openai` (the index rebuilds itself).
+Change the model with `LLM_MODEL=...`. If you don't, the agent asks your provider for its model list and picks a small chat model. Want hosted embeddings instead of local? `EMBED_PROVIDER=openai` (the index rebuilds itself).
+
+**Use it from Claude Code** (no API key needed, your Claude login is enough). From the repo folder:
+
+```bash
+claude mcp add midnight-rental -- "$PWD/.venv/bin/python" "$PWD/part2/mcp_server.py"
+```
+
+Then start `claude` and ask: "search the Midnight Rental shelf for monks and a clock tower." Note: a Claude Pro/Max login is **not** an API key, so it won't work as `LLM_API_KEY`. Use it through Claude Code like this instead.
 
 **Plug it into Claude Desktop or Cursor** (absolute paths, no key needed):
 

@@ -10,9 +10,13 @@ The agent needs a chat model with tool calling. Any OpenAI-compatible endpoint w
     LLM_PROVIDER=gateway     # Vercel AI Gateway, AI_GATEWAY_API_KEY
     LLM_PROVIDER=openrouter  # OPENROUTER_API_KEY
     LLM_PROVIDER=groq        # GROQ_API_KEY
+    LLM_PROVIDER=deepseek    # DEEPSEEK_API_KEY
     LLM_PROVIDER=custom      # LLM_BASE_URL + LLM_API_KEY, e.g. LM Studio, vLLM, Together
 
-LLM_MODEL overrides the preset's default model. Embeddings follow the same idea:
+Or skip LLM_PROVIDER and just set LLM_API_KEY: the provider is read off the key's prefix.
+Settings can live in a .env file at the repo root (see .env.example).
+
+LLM_MODEL overrides the preset's default model; with no default, we ask the provider's /models list. Embeddings follow the same idea:
 EMBED_PROVIDER=local (default) or EMBED_PROVIDER=openai with EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL.
 """
 
@@ -32,13 +36,40 @@ class Preset:
 
 
 PRESETS: dict[str, Preset] = {
-    "openai": Preset(None, "OPENAI_API_KEY", "gpt-4o-mini"),
-    "gateway": Preset("https://ai-gateway.vercel.sh/v1", "AI_GATEWAY_API_KEY", "openai/gpt-4o-mini"),
-    "openrouter": Preset("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openai/gpt-4o-mini"),
+    "openai": Preset(None, "OPENAI_API_KEY", ""),  # "" = ask the provider for a small chat model
+    "gateway": Preset("https://ai-gateway.vercel.sh/v1", "AI_GATEWAY_API_KEY", ""),
+    "openrouter": Preset("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", ""),
     "groq": Preset("https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile"),
+    "anthropic": Preset("https://api.anthropic.com/v1/", "ANTHROPIC_API_KEY", "claude-haiku-4-5"),
+    "gemini": Preset("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-2.5-flash"),
+    "deepseek": Preset("https://api.deepseek.com", "DEEPSEEK_API_KEY", "deepseek-chat"),
     "ollama": Preset("http://localhost:11434/v1", None, "llama3.1"),
     "custom": Preset(None, "LLM_API_KEY", ""),
 }
+
+
+# Checked in order, so sk-or- and sk-ant- win over plain sk-. DeepSeek keys also start with sk-:
+# set DEEPSEEK_API_KEY or LLM_PROVIDER=deepseek for those.
+KEY_PREFIXES = [("sk-or-", "openrouter"), ("sk-ant-", "anthropic"), ("gsk_", "groq"), ("AIza", "gemini"),
+                ("vck_", "gateway"), ("sk-", "openai")]
+
+
+def load_dotenv() -> None:
+    """Read KEY=value lines from the nearest .env (this folder or any parent). Real env vars win."""
+    from pathlib import Path
+
+    for folder in [Path.cwd(), *Path.cwd().parents, Path(__file__).resolve().parent, *Path(__file__).resolve().parents]:
+        path = folder / ".env"
+        if path.is_file():
+            for line in path.read_text().splitlines():
+                name, sep, value = line.partition("=")
+                value = value.strip().strip("'\"")
+                if sep and value and not name.strip().startswith("#"):
+                    os.environ.setdefault(name.strip(), value)
+            return
+
+
+load_dotenv()
 
 
 class ConfigError(RuntimeError):
@@ -61,33 +92,61 @@ def llm_config() -> LLMConfig:
     base_url = os.environ.get("LLM_BASE_URL") or preset.base_url
     model = os.environ.get("LLM_MODEL") or preset.model
     if provider == "custom" and not (base_url and model):
-        raise ConfigError("LLM_PROVIDER=custom needs LLM_BASE_URL and LLM_MODEL")
+        raise ConfigError("Couldn't tell the provider from LLM_API_KEY. Set LLM_BASE_URL and LLM_MODEL too (see .env.example).")
     if preset.key_env is None:
         # Local servers ignore the key, but the OpenAI SDK refuses an empty one.
         api_key = os.environ.get("LLM_API_KEY", "local")
     else:
         api_key = os.environ.get("LLM_API_KEY") or os.environ.get(preset.key_env, "")
         if not api_key:
-            raise ConfigError(f"LLM_PROVIDER={provider} needs {preset.key_env} (or LLM_API_KEY). See part2/README.md.")
+            raise ConfigError(f"LLM_PROVIDER={provider} needs {preset.key_env} (or LLM_API_KEY). See .env.example.")
     return LLMConfig(provider, base_url, api_key, model)
 
 
 def _guess_provider() -> str:
     """Pick whichever key the student already has, so `python part2/agent.py` just works."""
-    for name in ("openai", "gateway", "openrouter", "groq"):
+    if os.environ.get("LLM_BASE_URL"):
+        return "custom"
+    key = os.environ.get("LLM_API_KEY", "")
+    if key.startswith("sk-ant-oat"):
+        raise ConfigError("That's a Claude Pro/Max login token, not an API key. Get one at console.anthropic.com, "
+                          "or use Claude Code itself with the MCP server (see README), which needs no key.")
+    if key:
+        return next((name for prefix, name in KEY_PREFIXES if key.startswith(prefix)), "custom")
+    for name in ("openai", "gateway", "openrouter", "groq", "anthropic", "gemini", "deepseek"):
         key_env = PRESETS[name].key_env
         if key_env and os.environ.get(key_env):
             return name
-    if os.environ.get("LLM_BASE_URL"):
-        return "custom"
     return "ollama"
 
 
+# No model name is hard-coded for providers with big catalogs: ask the provider what it has and
+# prefer a small, cheap chat model. Set LLM_MODEL to choose one yourself.
+NOT_CHAT = ("embed", "tts", "whisper", "audio", "transcribe", "realtime", "image", "dall", "moderation",
+            "search", "guard", "rerank", "vision", "ocr", "codex")
+SMALL = ("mini", "flash", "haiku", "small", "instant", "lite", "8b", "chat")
+
+
+def pick_models(ids):
+    ids = [i.removeprefix("models/") for i in ids if not any(w in i.lower() for w in NOT_CHAT)]
+    return sorted(ids, key=lambda i: next((n for n, w in enumerate(SMALL) if w in i.lower()), len(SMALL)))
+
+
 def chat_client():
+    from dataclasses import replace
+
     from openai import OpenAI
 
     cfg = llm_config()
     client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key, timeout=60, max_retries=3)
+    if not cfg.model:
+        try:
+            options = pick_models([m.id for m in client.models.list()])
+        except Exception as err:
+            raise ConfigError(f"Couldn't list {cfg.provider}'s models ({err}). Check the key, or set LLM_MODEL.") from err
+        if not options:
+            raise ConfigError(f"{cfg.provider} returned no chat models. Set LLM_MODEL.")
+        cfg = replace(cfg, model=options[0])
     return client, cfg
 
 

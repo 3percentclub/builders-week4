@@ -46,13 +46,13 @@ score(doc) = sum over each list of 1 / (k + rank)      # rank starts at 1, k = 6
 
 `ask.py` replays the follow-up bug from class: *"Recommend a found-footage movie"* → *"Anything like that but set on a train?"* It searches the shelf with the raw chat history, then has an LLM rewrite the follow-up into a standalone question and searches again. Search uses **your** `rrf()`, so finish Level 2 first.
 
-**Bring any API key.** It isn't tied to one company, and it uses only Python's standard library. Set three values:
+**Bring any API key.** It isn't tied to one company, and it uses only Python's standard library. Set three values, either in a `.env` file (copy [`.env.example`](../.env.example) from the repo root) or as environment variables / Colab secrets:
 
 | Name | What it is |
 |---|---|
 | `LLM_API_KEY` | Your key |
 | `LLM_BASE_URL` | Your provider's OpenAI-compatible URL (table below) |
-| `MODEL` | A small, cheap model from that provider |
+| `LLM_MODEL` | A small, cheap model from that provider (the old name `MODEL` still works) |
 
 | Provider | `LLM_BASE_URL` |
 |---|---|
@@ -70,7 +70,7 @@ score(doc) = sum over each list of 1 / (k + rank)      # rank starts at 1, k = 6
 %cd YOUR-REPO/homework
 import os
 from google.colab import userdata
-for name in ["LLM_API_KEY", "LLM_BASE_URL", "MODEL"]:
+for name in ["LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"]:
     os.environ[name] = userdata.get(name)
 !python ask.py
 ```

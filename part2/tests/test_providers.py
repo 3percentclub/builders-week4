@@ -2,10 +2,10 @@ import os
 import unittest
 from unittest.mock import patch
 
-from providers import ConfigError, embed_model_name, llm_config
+from providers import ConfigError, embed_model_name, llm_config, pick_models
 
 KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL", "OPENAI_API_KEY", "AI_GATEWAY_API_KEY",
-        "OPENROUTER_API_KEY", "GROQ_API_KEY", "EMBED_PROVIDER", "EMBED_MODEL", "EMBED_BASE_URL")
+        "OPENROUTER_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "EMBED_PROVIDER", "EMBED_MODEL", "EMBED_BASE_URL")
 
 
 def env(**values):
@@ -25,6 +25,31 @@ class LLMConfig(unittest.TestCase):
         with env(GROQ_API_KEY="g"):
             cfg = llm_config()
         self.assertEqual((cfg.provider, cfg.api_key), ("groq", "g"))
+
+    def test_provider_is_read_off_the_key_prefix(self):
+        for key, provider in [("sk-or-v1-x", "openrouter"), ("sk-ant-x", "anthropic"), ("gsk_x", "groq"),
+                              ("AIzaX", "gemini"), ("sk-proj-x", "openai")]:
+            with env(LLM_API_KEY=key):
+                cfg = llm_config()
+            self.assertEqual((cfg.provider, cfg.api_key), (provider, key))
+
+    def test_deepseek_by_name_or_key(self):
+        for kwargs in ({"DEEPSEEK_API_KEY": "sk-d"}, {"LLM_PROVIDER": "deepseek", "LLM_API_KEY": "sk-d"}):
+            with env(**kwargs):
+                cfg = llm_config()
+            self.assertEqual((cfg.provider, cfg.base_url), ("deepseek", "https://api.deepseek.com"))
+
+    def test_claude_subscription_token_gets_a_clear_error(self):
+        with env(LLM_API_KEY="sk-ant-oat01-x"), self.assertRaisesRegex(ConfigError, "console.anthropic.com"):
+            llm_config()
+
+    def test_pick_models_prefers_small_chat_models(self):
+        ids = ["big-model-2", "text-embed-3", "tts-1", "acme-mini", "models/gemini-x-flash"]
+        self.assertEqual(pick_models(ids), ["acme-mini", "gemini-x-flash", "big-model-2"])
+
+    def test_unrecognised_key_asks_for_a_base_url(self):
+        with env(LLM_API_KEY="mystery"), self.assertRaisesRegex(ConfigError, "LLM_BASE_URL"):
+            llm_config()
 
     def test_explicit_provider_without_key_is_a_clear_error(self):
         with env(LLM_PROVIDER="openrouter"), self.assertRaisesRegex(ConfigError, "OPENROUTER_API_KEY"):
