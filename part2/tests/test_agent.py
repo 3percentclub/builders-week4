@@ -5,7 +5,7 @@ import unittest
 from dataclasses import dataclass
 from types import SimpleNamespace
 
-from agent import MAX_TOOL_CALLS, NOT_ON_SHELF, Clerk
+from agent import ENDING_HIDDEN, MAX_TOOL_CALLS, NOT_ON_SHELF, Clerk
 
 
 @dataclass
@@ -52,6 +52,27 @@ class ScriptedClient:
     def _create(self, **kwargs):
         self.requests.append(kwargs)
         return SimpleNamespace(choices=[SimpleNamespace(message=self.script.pop(0))])
+
+
+class Spoilers(unittest.TestCase):
+    def _tool_payloads(self, spoilers):
+        client = ScriptedClient([
+            reply(calls=[tool_call(0), tool_call(1, "get_tape", '{"tape": "1031"}')]),
+            reply("Tape #1031: Halloween."),
+        ])
+        Clerk(client, "m", FakeShelf(), spoilers=spoilers).ask("how does Halloween end")
+        return [json.loads(m["content"]) for m in client.requests[-1]["messages"] if m["role"] == "tool"]
+
+    def test_hidden_ending_is_marked_explicitly(self):
+        # A missing "ending" field invited the model to invent one in the stress run.
+        search, record = self._tool_payloads(spoilers=False)
+        self.assertTrue(all(hit["ending"] == ENDING_HIDDEN for hit in search))
+        self.assertEqual(record["ending"], ENDING_HIDDEN)
+
+    def test_spoilers_on_leaves_records_untouched(self):
+        search, record = self._tool_payloads(spoilers=True)
+        self.assertNotIn("ending", search[0])
+        self.assertNotIn("ending", record)
 
 
 class Budget(unittest.TestCase):

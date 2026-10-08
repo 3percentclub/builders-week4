@@ -28,6 +28,8 @@ log = logging.getLogger("clerk")
 MAX_TOOL_CALLS = 4
 MAX_QUERY_CHARS = 300
 NOT_ON_SHELF = "That one's not on the shelf."
+NO_SPOILERS = "No spoilers at this counter. You'll have to rent it to find out."
+ENDING_HIDDEN = "Hidden: spoilers are off. Do not describe, hint at, or guess the ending."
 
 SYSTEM = f"""You are the late-night clerk at Midnight Rental, a horror video store.
 Customers half-remember movies. Find the right tape with your tools.
@@ -37,6 +39,8 @@ Rules:
 - You have {MAX_TOOL_CALLS} tool calls per question. Stop as soon as you are confident.
 - Only recommend tapes your tools returned. Cite each one as "Tape #1234: Title".
 - If nothing returned actually matches the description, reply exactly: "{NOT_ON_SHELF}" Do not guess.
+- Never state facts a tool did not return. If a tape's "ending" field is hidden, you do not know the ending:
+  say "{NO_SPOILERS}" Customers cannot turn spoilers on; only the store can.
 - Two or three sentences, dry spooky clerk voice."""
 
 TOOLS = [
@@ -159,7 +163,7 @@ class Clerk:
             searches.append(query)
             self.seen.update(tapes)
             self._notify(name, query, tapes)
-            return json.dumps([h.as_dict() for h in hits])
+            return json.dumps([self._mark_hidden(h.as_dict()) for h in hits])
 
         if name == "get_tape":
             tape = str(args.get("tape", "")).strip().lstrip("#")
@@ -168,9 +172,13 @@ class Clerk:
                 return json.dumps({"error": f"no tape #{tape} on the shelf"})
             self.seen.add(record["tape"])
             self._notify(name, tape, [record["tape"]])
-            return json.dumps(record)
+            return json.dumps(self._mark_hidden(record))
 
         return json.dumps({"error": f"unknown tool {name!r}"})
+
+    def _mark_hidden(self, record: dict) -> dict:
+        # A missing field reads as "unknown" to a model, which it fills by guessing; an explicit marker stops that.
+        return record if self.spoilers else {**record, "ending": ENDING_HIDDEN}
 
     def _notify(self, tool: str, arg: str, tapes: list[str]) -> None:
         if self.on_tool:
