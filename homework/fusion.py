@@ -21,6 +21,6 @@ def rrf(rankings: list[list[str]], k: int = 60) -> list[str]:
 
 
 if __name__ == "__main__":
-    vector = ["2016", "2011", "2023"]  # Train to Busan, Cabin in the Woods, Barbarian
-    bm25 = ["2023", "2016", "1999"]  # Barbarian, Train to Busan, Blair Witch
+    vector = ["B05", "B02", "B11"]  # Strangers on a Train, Dracula, Station Eleven
+    bm25 = ["B11", "B05", "B14"]  # Station Eleven, Strangers on a Train, Bird Box
     print(rrf([vector, bm25]))

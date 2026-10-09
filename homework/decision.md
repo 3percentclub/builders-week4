@@ -21,10 +21,18 @@ One or two sentences each. Replace the text after each arrow.
 **k:** What happens to the results when k is 0 vs 60? Which one rewards being #1 in a single list more?
 →
 
-## Level 3 (optional bonus)
+## Level 3 (optional challenge)
+
+**Small vs big:** Run `python parent_child.py`. Could the model answer "Who ends up with a corkscrew in his neck?" from the child chunk alone? What does the parent card add?
+→
+
+**Level 1 vs Level 3:** Both levels fix orphan chunks. When would you pick the Level 1 fix (header on every chunk) and when would you pick parent-child? Think about how long your documents are.
+→
+
+## Level 4 (optional bonus)
 
 **The bug:** What did search A (raw history) return, and why?
 →
 
-**The fix:** What did your model rewrite the follow-up into? Did the clerk end up recommending the right tape?
+**The fix:** What did your model rewrite the follow-up into? Did the clerk end up recommending a train book?
 →
